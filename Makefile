@@ -8,12 +8,12 @@ else
   DEBFLAGS = -O2
 endif
 
-CFLAGS += $(DEBFLAGS) -I$(LDDINCDIR)
+ccflags-y += $(DEBFLAGS)
 
 ifneq ($(KERNELRELEASE),)
 # call from kernel build system
 
-obj-m	:= simple.o
+obj-m	:= physicalmemory.o
 
 else
 
@@ -21,7 +21,7 @@ KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD       := $(shell pwd)
 
 default:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) LDDINCDIR=$(PWD)/../include modules
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 endif
 
