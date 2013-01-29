@@ -1,6 +1,6 @@
 #!/bin/sh
-module="simple"
-device="simple"
+module="physicalmemory"
+device="physicalmemory"
 
 # invoke rmmod with all arguments we got
 /sbin/rmmod $module $* || exit 1
