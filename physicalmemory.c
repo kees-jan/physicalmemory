@@ -16,9 +16,12 @@
 #include <linux/device.h>
 
 static int physicalmemory_major = 0;
-module_param(physicalmemory_major, int, 0);
-MODULE_AUTHOR("Jonathan Corbet");
-MODULE_LICENSE("Dual BSD/GPL");
+static unsigned long start = 0;
+static unsigned long size = 0;
+module_param(start, ulong, 0);
+module_param(size, ulong, 0);
+MODULE_AUTHOR("Kees-Jan Dijkzeul");
+MODULE_LICENSE("GPL");
 
 /*
  * Open the device; in fact, there's nothing to do here.
@@ -131,6 +134,9 @@ static int physicalmemory_init(void)
   dev_t dev = MKDEV(physicalmemory_major, 0);
 
   printk(KERN_NOTICE "PhysicalMemory Init\n");
+  printk(KERN_NOTICE "IOMEM start: %llX, end: %llX\n", iomem_resource.start, iomem_resource.end );
+  printk(KERN_NOTICE "REQUESTED start: %lX, size: %lX\n", start, size );
+  
 
   /* Figure out our device number. */
   if (physicalmemory_major)
