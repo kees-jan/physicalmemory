@@ -156,7 +156,6 @@ static void physicalmemory_cleanup(void)
 {
   printk(KERN_NOTICE "PhysicalMemory Cleanup\n");
   cdev_del(PhysicalmemoryDevs);
-  cdev_del(PhysicalmemoryDevs + 1);
   unregister_chrdev_region(MKDEV(physicalmemory_major, 0), 2);
 }
 
