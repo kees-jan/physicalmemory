@@ -19,8 +19,9 @@ static int physicalmemory_major = 0;
 static unsigned long start = 0;
 static unsigned long size = 0;
 static unsigned long end = 0;
-module_param(start, ulong, 0);
-module_param(size, ulong, 0);
+module_param(start, ulong, S_IRUGO);
+module_param(size, ulong, S_IRUGO);
+module_param(end, ulong, S_IRUGO);
 MODULE_AUTHOR("Kees-Jan Dijkzeul");
 MODULE_LICENSE("GPL");
 
@@ -31,7 +32,7 @@ static int physicalmemory_check_parameters(void)
   {
     if(end != start + size)
     {
-      printk(KERN_WARNING "PhysicalMemory: start: 0x010%lX, end: 0x010%lX, size: 0x010%lX: size and end don't match\n",
+      printk(KERN_WARNING "PhysicalMemory: ERROR: start: 0x010%lX, end: 0x010%lX, size: 0x010%lX: size and end don't match\n",
              start, end, size);
 
       return -EINVAL;
@@ -39,12 +40,12 @@ static int physicalmemory_check_parameters(void)
   }
   if(!start)
   {
-    printk(KERN_WARNING "PhysicalMemory: start address not given\n");
+    printk(KERN_WARNING "PhysicalMemory: ERROR: start address not given\n");
     return -EINVAL;
   }
   if(!end && !size)
   {
-    printk(KERN_WARNING "PhysicalMemory: end and or size not given\n");
+    printk(KERN_WARNING "PhysicalMemory: ERROR: end and or size not given\n");
     return -EINVAL;
   }
   if(!end)
