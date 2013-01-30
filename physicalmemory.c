@@ -15,18 +15,25 @@
 
 #include <linux/device.h>
 
-static int physicalmemory_major = 0;
+// Metadata
+MODULE_AUTHOR("Kees-Jan Dijkzeul");
+MODULE_LICENSE("GPL");
+#define DRIVER_NAME "physicalmemory"
+
+// Parameters
 static unsigned long start = 0;
 static unsigned long size = 0;
 static unsigned long end = 0;
 module_param(start, ulong, S_IRUGO);
 module_param(size, ulong, S_IRUGO);
 module_param(end, ulong, S_IRUGO);
-MODULE_AUTHOR("Kees-Jan Dijkzeul");
-MODULE_LICENSE("GPL");
 
+// Resources
+static int physicalmemory_major = 0;
+static struct resource* region = NULL;
+static u64 mappedMemory = 0;
 
-static int physicalmemory_check_parameters(void)
+static int check_parameters(void)
 {
   if(start && size && end)
   {
@@ -48,12 +55,56 @@ static int physicalmemory_check_parameters(void)
     printk(KERN_WARNING "PhysicalMemory: ERROR: end and or size not given\n");
     return -EINVAL;
   }
+  if(start & ~PAGE_MASK)
+  {
+    printk(KERN_WARNING "PhysicalMemory: ERROR: start is not page aligned\n");
+    return -EINVAL;
+  }
+  if(size & ~PAGE_MASK)
+  {
+    printk(KERN_WARNING "PhysicalMemory: ERROR: size is not page aligned\n");
+    return -EINVAL;
+  }
+  if(end & ~PAGE_MASK)
+  {
+    printk(KERN_WARNING "PhysicalMemory: ERROR: end is not page aligned\n");
+    return -EINVAL;
+  }
+  
   if(!end)
     end = start+size;
   if(!size)
     size = end-start;
 
   return 0;
+}
+
+static int obtain_memory(void)
+{
+  region = request_mem_region(start, size, DRIVER_NAME);
+  if(!region)
+    return -ENOMEM;
+
+  mappedMemory = (u64)ioremap(start, size);
+  if(!mappedMemory)
+    return -ENOMEM;
+  
+  return 0;
+}
+
+static void release_memory(void)
+{
+  if(mappedMemory)
+  {
+    iounmap((u64*)mappedMemory);
+    mappedMemory = 0;
+  }
+  
+  if(region)
+  {
+    release_mem_region(start, size);
+    region = NULL;
+  }
 }
 
 /*
@@ -167,6 +218,8 @@ static void physicalmemory_cleanup(void)
     cdev_del(PhysicalmemoryDevs);
     unregister_chrdev_region(MKDEV(physicalmemory_major, 0), 2);
   }
+
+  release_memory();
 }
 
 /*
@@ -178,17 +231,22 @@ static int __init physicalmemory_init(void)
   dev_t dev = MKDEV(physicalmemory_major, 0);
 
   printk(KERN_NOTICE "PhysicalMemory: Init\n");
-  result = physicalmemory_check_parameters();
+  printk(KERN_NOTICE "REQUESTED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
+  result = check_parameters();
+  if(result < 0)
+    goto fail;
+
+  result = obtain_memory();
   if(result < 0)
     goto fail;
   
-  printk(KERN_NOTICE "REQUESTED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
+  printk(KERN_NOTICE "OBTAINED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
 
   /* Figure out our device number. */
   if (physicalmemory_major)
-    result = register_chrdev_region(dev, 2, "physicalmemory");
+    result = register_chrdev_region(dev, 2, DRIVER_NAME);
   else {
-    result = alloc_chrdev_region(&dev, 0, 2, "physicalmemory");
+    result = alloc_chrdev_region(&dev, 0, 2, DRIVER_NAME);
     physicalmemory_major = MAJOR(dev);
   }
   if (result < 0) {
