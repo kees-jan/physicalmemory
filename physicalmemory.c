@@ -18,10 +18,42 @@
 static int physicalmemory_major = 0;
 static unsigned long start = 0;
 static unsigned long size = 0;
+static unsigned long end = 0;
 module_param(start, ulong, 0);
 module_param(size, ulong, 0);
 MODULE_AUTHOR("Kees-Jan Dijkzeul");
 MODULE_LICENSE("GPL");
+
+
+static int physicalmemory_check_parameters(void)
+{
+  if(start && size && end)
+  {
+    if(end != start + size)
+    {
+      printk(KERN_WARNING "PhysicalMemory: start: 0x010%lX, end: 0x010%lX, size: 0x010%lX: size and end don't match\n",
+             start, end, size);
+
+      return -EINVAL;
+    }
+  }
+  if(!start)
+  {
+    printk(KERN_WARNING "PhysicalMemory: start address not given\n");
+    return -EINVAL;
+  }
+  if(!end && !size)
+  {
+    printk(KERN_WARNING "PhysicalMemory: end and or size not given\n");
+    return -EINVAL;
+  }
+  if(!end)
+    end = start+size;
+  if(!size)
+    size = end-start;
+
+  return 0;
+}
 
 /*
  * Open the device; in fact, there's nothing to do here.
@@ -33,7 +65,7 @@ static int physicalmemory_open (struct inode *inode, struct file *filp)
 
 
 /*
- * Closing is just as simpler.
+ * Closing is just as simple.
  */
 static int physicalmemory_release(struct inode *inode, struct file *filp)
 {
@@ -125,18 +157,31 @@ static struct file_operations *physicalmemory_fops[MAX_PHYSICALMEMORY_DEV] = {
  */
 static struct cdev PhysicalmemoryDevs[MAX_PHYSICALMEMORY_DEV];
 
+static void physicalmemory_cleanup(void)
+{
+  printk(KERN_NOTICE "PhysicalMemory: Cleanup\n");
+  if(physicalmemory_major)
+  {
+    printk(KERN_NOTICE "PhysicalMemory: Unregistering devices\n");
+    cdev_del(PhysicalmemoryDevs);
+    unregister_chrdev_region(MKDEV(physicalmemory_major, 0), 2);
+  }
+}
+
 /*
  * Module housekeeping.
  */
-static int physicalmemory_init(void)
+static int __init physicalmemory_init(void)
 {
   int result;
   dev_t dev = MKDEV(physicalmemory_major, 0);
 
-  printk(KERN_NOTICE "PhysicalMemory Init\n");
-  printk(KERN_NOTICE "IOMEM start: %llX, end: %llX\n", iomem_resource.start, iomem_resource.end );
-  printk(KERN_NOTICE "REQUESTED start: %lX, size: %lX\n", start, size );
+  printk(KERN_NOTICE "PhysicalMemory: Init\n");
+  result = physicalmemory_check_parameters();
+  if(result < 0)
+    goto fail;
   
+  printk(KERN_NOTICE "REQUESTED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
 
   /* Figure out our device number. */
   if (physicalmemory_major)
@@ -147,22 +192,21 @@ static int physicalmemory_init(void)
   }
   if (result < 0) {
     printk(KERN_WARNING "physicalmemory: unable to get major %d\n", physicalmemory_major);
-    return result;
+    goto fail;
   }
   if (physicalmemory_major == 0)
+  {
     physicalmemory_major = result;
+    result = 0;
+  }
 
   /* Now set up two cdevs. */
   physicalmemory_setup_cdev(PhysicalmemoryDevs, 0, &physicalmemory_remap_ops);
   return 0;
-}
 
-
-static void physicalmemory_cleanup(void)
-{
-  printk(KERN_NOTICE "PhysicalMemory Cleanup\n");
-  cdev_del(PhysicalmemoryDevs);
-  unregister_chrdev_region(MKDEV(physicalmemory_major, 0), 2);
+ fail:
+  physicalmemory_cleanup();
+  return result;
 }
 
 
