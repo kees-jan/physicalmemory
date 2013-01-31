@@ -84,11 +84,17 @@ static int obtain_memory(void)
 {
   region = request_mem_region(start, size, DRIVER_NAME);
   if(!region)
+  {
+    printk(KERN_WARNING "PhysicalMemory: ERROR: request_mem_region failed\n");
     return -ENOMEM;
+  }
 
   mappedMemory = (u64)ioremap(start, size);
   if(!mappedMemory)
+  {
+    printk(KERN_WARNING "PhysicalMemory: ERROR: ioremap failed\n");
     return -ENOMEM;
+  }
   
   return 0;
 }
