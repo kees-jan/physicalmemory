@@ -95,6 +95,9 @@ static int obtain_memory(void)
     printk(KERN_WARNING "PhysicalMemory: ERROR: ioremap failed\n");
     return -ENOMEM;
   }
+
+  printk(KERN_NOTICE "PhysicalMemory: Mapped physical memory to address 0x%010llX\n", mappedMemory);
+  // *((u64*)mappedMemory) = 0x0102030405060708;
   
   return 0;
 }
@@ -139,13 +142,13 @@ static int physicalmemory_release(struct inode *inode, struct file *filp)
 
 void physicalmemory_vma_open(struct vm_area_struct *vma)
 {
-  printk(KERN_NOTICE "Physicalmemory VMA open, virt %lx, phys %lx\n",
+  printk(KERN_NOTICE "PhysicalMemory: VMA open, virt %lx, phys %lx\n",
          vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
 }
 
 void physicalmemory_vma_close(struct vm_area_struct *vma)
 {
-  printk(KERN_NOTICE "Physicalmemory VMA close.\n");
+  printk(KERN_NOTICE "PhysicalMemory: VMA close.\n");
 }
 
 
@@ -161,6 +164,11 @@ static struct vm_operations_struct physicalmemory_remap_vm_ops = {
 
 static int physicalmemory_remap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+  // vma->vm_flags |= VM_IO;
+  // vma->vm_flags |= VM_RESERVED; /* don't swap out */
+  // vma->vm_flags |= VM_LOCKED;
+  // vma->vm_flags |= VM_SHARED;
+  
   if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
                       vma->vm_end - vma->vm_start,
                       vma->vm_page_prot))
