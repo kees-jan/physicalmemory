@@ -10,7 +10,7 @@
 #include <linux/types.h>    /* size_t */
 #include <linux/mm.h>
 #include <linux/kdev_t.h>
-#include <asm/page.h>
+// #include <asm/page.h>
 #include <linux/cdev.h>
 #include <linux/io.h>
 
@@ -90,7 +90,7 @@ static int obtain_memory(void)
     return -ENOMEM;
   }
 
-  mappedMemory = (u64)ioremap(start, size);
+  mappedMemory = (u64)ioremap_cache(start, size);
   if(!mappedMemory)
   {
     printk(KERN_WARNING "PhysicalMemory: ERROR: ioremap failed\n");
@@ -146,6 +146,8 @@ void physicalmemory_vma_open(struct vm_area_struct *vma)
   printk(KERN_NOTICE "PhysicalMemory: VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
          vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
          vma->vm_end - vma->vm_start);
+  printk(KERN_NOTICE "PhysicalMemory: VMA open, flags 0x%010lX, prot 0x%010lX\n",
+         vma->vm_flags, vma->vm_page_prot.pgprot);
 }
 
 void physicalmemory_vma_close(struct vm_area_struct *vma)
