@@ -12,6 +12,7 @@
 #include <linux/kdev_t.h>
 #include <asm/page.h>
 #include <linux/cdev.h>
+#include <linux/io.h>
 
 #include <linux/device.h>
 
