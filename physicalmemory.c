@@ -40,7 +40,8 @@ static int check_parameters(void)
   {
     if(end != start + size)
     {
-      printk(KERN_WARNING "PhysicalMemory: ERROR: start: 0x010%lX, end: 0x010%lX, size: 0x010%lX: size and end don't match\n",
+      printk(KERN_WARNING "PhysicalMemory: ERROR: start: 0x%010lX, end: 0x%010lX, size: 0x%010lX: "
+             "size and end don't match\n",
              start, end, size);
 
       return -EINVAL;
@@ -142,8 +143,9 @@ static int physicalmemory_release(struct inode *inode, struct file *filp)
 
 void physicalmemory_vma_open(struct vm_area_struct *vma)
 {
-  printk(KERN_NOTICE "PhysicalMemory: VMA open, virt %lx, phys %lx\n",
-         vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
+  printk(KERN_NOTICE "PhysicalMemory: VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
+         vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
+         vma->vm_end - vma->vm_start);
 }
 
 void physicalmemory_vma_close(struct vm_area_struct *vma)
