@@ -11,8 +11,12 @@
 #include <linux/kdev_t.h>
 #include <linux/cdev.h>
 #include <linux/io.h>
+#include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 #include <linux/device.h>
+
+#include "physicalmemory_ioctl.h"
 
 // Metadata
 MODULE_AUTHOR("Kees-Jan Dijkzeul");
@@ -129,6 +133,38 @@ static int physicalmemory_release(struct inode *inode, struct file *filp)
   return 0;
 }
 
+static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg)
+{
+  const unsigned int type = _IOC_TYPE(cmd);
+  const unsigned int nr = _IOC_NR(cmd);
+
+  printk(KERN_NOTICE PRINTK_PREFIX "ioctl\n");
+
+  if(type != PHYSICALMEMORY_IOCTL_TYPE)
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioctl type %u unknown\n", type);
+    return -ENOTTY;
+  }
+
+  if(nr>=PHYSICALMEMORY_IOCTL_COUNT)
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: physicalmemory_ioctl %u unknown\n", nr);
+    return -ENOTTY;
+  }
+
+  switch(cmd)
+  {
+  case PHYSICALMEMORY_IOCTL_FLUSH_CACHE:
+    printk(KERN_NOTICE PRINTK_PREFIX "Flushing caches\n");
+    clflush_cache_range((void*)start, size);
+    break;
+  default:
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioctl %x not handled\n", cmd);
+    break;
+  }
+  
+  return 0;
+}
 
 
 /*
