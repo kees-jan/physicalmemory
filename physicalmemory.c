@@ -1,16 +1,14 @@
-// #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 
-#include <linux/kernel.h>   /* printk() */
-#include <linux/slab.h>   /* kmalloc() */
-#include <linux/fs.h>       /* everything... */
-#include <linux/errno.h>    /* error codes */
-#include <linux/types.h>    /* size_t */
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/fs.h>
+#include <linux/errno.h>
+#include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/kdev_t.h>
-// #include <asm/page.h>
 #include <linux/cdev.h>
 #include <linux/io.h>
 
@@ -20,6 +18,7 @@
 MODULE_AUTHOR("Kees-Jan Dijkzeul");
 MODULE_LICENSE("GPL");
 #define DRIVER_NAME "physicalmemory"
+#define PRINTK_PREFIX DRIVER_NAME ": "
 
 // Parameters
 static unsigned long start = 0;
@@ -40,7 +39,7 @@ static int check_parameters(void)
   {
     if(end != start + size)
     {
-      printk(KERN_WARNING "PhysicalMemory: ERROR: start: 0x%010lX, end: 0x%010lX, size: 0x%010lX: "
+      printk(KERN_WARNING PRINTK_PREFIX "ERROR: start: 0x%010lX, end: 0x%010lX, size: 0x%010lX: "
              "size and end don't match\n",
              start, end, size);
 
@@ -49,30 +48,30 @@ static int check_parameters(void)
   }
   if(!start)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: start address not given\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: start address not given\n");
     return -EINVAL;
   }
   if(!end && !size)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: end and or size not given\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: end and or size not given\n");
     return -EINVAL;
   }
   if(start & ~PAGE_MASK)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: start is not page aligned\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: start is not page aligned\n");
     return -EINVAL;
   }
   if(size & ~PAGE_MASK)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: size is not page aligned\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: size is not page aligned\n");
     return -EINVAL;
   }
   if(end & ~PAGE_MASK)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: end is not page aligned\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: end is not page aligned\n");
     return -EINVAL;
   }
-  
+
   if(!end)
     end = start+size;
   if(!size)
@@ -86,20 +85,20 @@ static int obtain_memory(void)
   region = request_mem_region(start, size, DRIVER_NAME);
   if(!region)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: request_mem_region failed\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: request_mem_region failed\n");
     return -ENOMEM;
   }
 
   mappedMemory = (u64)ioremap_cache(start, size);
   if(!mappedMemory)
   {
-    printk(KERN_WARNING "PhysicalMemory: ERROR: ioremap failed\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioremap failed\n");
     return -ENOMEM;
   }
 
-  printk(KERN_NOTICE "PhysicalMemory: Mapped physical memory to address 0x%010llX\n", mappedMemory);
+  printk(KERN_NOTICE PRINTK_PREFIX "Mapped physical memory to address 0x%010llX\n", mappedMemory);
   // *((u64*)mappedMemory) = 0x0102030405060708;
-  
+
   return 0;
 }
 
@@ -110,7 +109,7 @@ static void release_memory(void)
     iounmap((u64*)mappedMemory);
     mappedMemory = 0;
   }
-  
+
   if(region)
   {
     release_mem_region(start, size);
@@ -118,20 +117,15 @@ static void release_memory(void)
   }
 }
 
-/*
- * Open the device; in fact, there's nothing to do here.
- */
 static int physicalmemory_open (struct inode *inode, struct file *filp)
 {
+  printk(KERN_NOTICE PRINTK_PREFIX "Open\n");
   return 0;
 }
 
-
-/*
- * Closing is just as simple.
- */
 static int physicalmemory_release(struct inode *inode, struct file *filp)
 {
+  printk(KERN_NOTICE PRINTK_PREFIX "Release\n");
   return 0;
 }
 
@@ -143,16 +137,16 @@ static int physicalmemory_release(struct inode *inode, struct file *filp)
 
 void physicalmemory_vma_open(struct vm_area_struct *vma)
 {
-  printk(KERN_NOTICE "PhysicalMemory: VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
          vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
          vma->vm_end - vma->vm_start);
-  printk(KERN_NOTICE "PhysicalMemory: VMA open, flags 0x%010lX, prot 0x%010lX\n",
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA open, flags 0x%010lX, prot 0x%010lX\n",
          vma->vm_flags, vma->vm_page_prot.pgprot);
 }
 
 void physicalmemory_vma_close(struct vm_area_struct *vma)
 {
-  printk(KERN_NOTICE "PhysicalMemory: VMA close.\n");
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA close.\n");
 }
 
 
@@ -168,11 +162,6 @@ static struct vm_operations_struct physicalmemory_remap_vm_ops = {
 
 static int physicalmemory_remap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-  // vma->vm_flags |= VM_IO;
-  // vma->vm_flags |= VM_RESERVED; /* don't swap out */
-  // vma->vm_flags |= VM_LOCKED;
-  // vma->vm_flags |= VM_SHARED;
-  
   if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
                       vma->vm_end - vma->vm_start,
                       vma->vm_page_prot))
@@ -192,7 +181,7 @@ static void physicalmemory_setup_cdev(struct cdev *dev, int minor,
                                       struct file_operations *fops)
 {
   int err, devno = MKDEV(physicalmemory_major, minor);
-    
+
   cdev_init(dev, fops);
   dev->owner = THIS_MODULE;
   dev->ops = fops;
@@ -208,19 +197,14 @@ static void physicalmemory_setup_cdev(struct cdev *dev, int minor,
  */
 /* Device 0 uses remap_pfn_range */
 static struct file_operations physicalmemory_remap_ops = {
-  .owner   = THIS_MODULE,
-  .open    = physicalmemory_open,
-  .release = physicalmemory_release,
-  .mmap    = physicalmemory_remap_mmap,
+  .owner          = THIS_MODULE,
+  .open           = physicalmemory_open,
+  .release        = physicalmemory_release,
+  .unlocked_ioctl = physicalmemory_ioctl,
+  .mmap           = physicalmemory_remap_mmap,
 };
 
 #define MAX_PHYSICALMEMORY_DEV 1
-
-#if 0
-static struct file_operations *physicalmemory_fops[MAX_PHYSICALMEMORY_DEV] = {
-  &physicalmemory_remap_ops,
-};
-#endif
 
 /*
  * We export two physicalmemory devices.  There's no need for us to maintain any
@@ -230,10 +214,10 @@ static struct cdev PhysicalmemoryDevs[MAX_PHYSICALMEMORY_DEV];
 
 static void physicalmemory_cleanup(void)
 {
-  printk(KERN_NOTICE "PhysicalMemory: Cleanup\n");
+  printk(KERN_NOTICE PRINTK_PREFIX "Cleanup\n");
   if(physicalmemory_major)
   {
-    printk(KERN_NOTICE "PhysicalMemory: Unregistering devices\n");
+    printk(KERN_NOTICE PRINTK_PREFIX "Unregistering devices\n");
     cdev_del(PhysicalmemoryDevs);
     unregister_chrdev_region(MKDEV(physicalmemory_major, 0), 2);
   }
@@ -249,7 +233,7 @@ static int __init physicalmemory_init(void)
   int result;
   dev_t dev = MKDEV(physicalmemory_major, 0);
 
-  printk(KERN_NOTICE "PhysicalMemory: Init\n");
+  printk(KERN_NOTICE PRINTK_PREFIX "Init\n");
   printk(KERN_NOTICE "REQUESTED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
   result = check_parameters();
   if(result < 0)
@@ -258,7 +242,7 @@ static int __init physicalmemory_init(void)
   result = obtain_memory();
   if(result < 0)
     goto fail;
-  
+
   printk(KERN_NOTICE "OBTAINED start: 0x%010lX, size: 0x%010lX, end: 0x%010lX\n", start, size, end );
 
   /* Figure out our device number. */
