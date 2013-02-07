@@ -156,7 +156,7 @@ static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg
   {
   case PHYSICALMEMORY_IOCTL_FLUSH_CACHE:
     printk(KERN_NOTICE PRINTK_PREFIX "Flushing caches\n");
-    clflush_cache_range((void*)start, size);
+    clflush_cache_range((void*)mappedMemory, size);
     break;
   default:
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioctl %x not handled\n", cmd);

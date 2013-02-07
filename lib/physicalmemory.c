@@ -38,11 +38,12 @@ int  phys_munmap(void *addr, size_t length)
   return munmap(addr, length);
 }
 
-void phys_flushCaches()
+int phys_flushCaches()
 {
   if(fd==-1)
   {
     printf("ERROR: flushCaches: Device not open\n");
+    return -1;
   }
   else
   {
@@ -50,7 +51,9 @@ void phys_flushCaches()
     if(result<0)
     {
       perror("ioctl failed");
+      return -1;
     }
+    return 0;
   }
 }
 
