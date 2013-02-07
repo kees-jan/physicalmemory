@@ -1,7 +1,7 @@
 #!/bin/sh
 module="physicalmemory"
 device="physicalmemory"
-mode="664"
+mode="666"
 
 # Group: since distributions do it differently, look for wheel or use staff
 if grep '^staff:' /etc/group > /dev/null; then
