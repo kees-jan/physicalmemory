@@ -11,8 +11,19 @@
 #include <linux/kdev_t.h>
 #include <linux/cdev.h>
 #include <linux/io.h>
+#include <linux/smp.h>
 #include <asm/uaccess.h>
-#include <asm/cacheflush.h>
+#include <asm/system.h>
+#include <linux/version.h>
+
+#if (LINUX_VERSION_CODE < 0x020630)
+#define OLD_LUNARIS_KERNEL
+#endif
+
+
+#ifndef OLD_LUNARIS_KERNEL
+#include <asm/cacheflush.h> // clflush_cache_range
+#endif
 
 #include <linux/device.h>
 
@@ -36,6 +47,19 @@ module_param(end, ulong, S_IRUGO);
 static int physicalmemory_major = 0;
 static struct resource* region = NULL;
 static u64 mappedMemory = 0;
+
+
+static void __wbinvd(void *dummy)
+{
+	wbinvd();
+}
+
+static int wbinvd_on_all_cpus(void)
+{
+  int result = on_each_cpu(__wbinvd, NULL, 1);
+  mb();
+  return result;
+}
 
 static int check_parameters(void)
 {
@@ -156,7 +180,7 @@ static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg
   {
   case PHYSICALMEMORY_IOCTL_FLUSH_CACHE:
     printk(KERN_NOTICE PRINTK_PREFIX "Flushing caches\n");
-    clflush_cache_range((void*)mappedMemory, size);
+    wbinvd_on_all_cpus();
     break;
   default:
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioctl %x not handled\n", cmd);
