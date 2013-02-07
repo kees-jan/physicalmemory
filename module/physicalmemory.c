@@ -57,7 +57,7 @@ static int check_parameters(void)
   }
   if(!end && !size)
   {
-    printk(KERN_WARNING PRINTK_PREFIX "ERROR: end and or size not given\n");
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: neither end nor size given\n");
     return -EINVAL;
   }
   if(start & ~PAGE_MASK)
