@@ -22,7 +22,7 @@ void phys_init()
   }
 }
 
-void *phys_mmap(void *addr, size_t length, int prot, int flags, off_t offset)
+void *phys_mmap(size_t length, int prot, int flags, off_t offset)
 {
   if(fd==-1)
   {
@@ -30,7 +30,7 @@ void *phys_mmap(void *addr, size_t length, int prot, int flags, off_t offset)
     return NULL;
   }
 
-  return mmap(addr, length, prot, flags, fd, offset);
+  return mmap(NULL, length, prot, flags, fd, offset);
 }
 
 int  phys_munmap(void *addr, size_t length)
