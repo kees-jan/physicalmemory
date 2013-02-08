@@ -36,11 +36,7 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   struct file_data* fileData = f->private_data;
 
   BUG_ON(!fileData);
-  if(!region)
-  {
-    printk(KERN_WARNING PRINTK_PREFIX "ERROR: No memory to allocate from\n");
-    return -ENOMEM;
-  }
+  BUG_ON(!region);
   if(copy_from_user(&size, &arg->size, sizeof(unsigned long)))
   {
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read size\n");
@@ -109,11 +105,7 @@ int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
   struct block* temp = NULL;
 
   BUG_ON(!fileData);
-  if(!region)
-  {
-    printk(KERN_WARNING PRINTK_PREFIX "ERROR: No memory to free to\n");
-    return -EINVAL;
-  }
+  BUG_ON(!region);
   if(copy_from_user(&size, &arg->size, sizeof(unsigned long)))
   {
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read size\n");
