@@ -47,7 +47,7 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
     return -EPERM;
   }
      
-  printk(KERN_NOTICE PRINTK_PREFIX "Allocating buffer of size %lu\n", size);
+  printk(KERN_NOTICE PRINTK_PREFIX "Allocating buffer of size 0x%lX\n", size);
 
   res = kzalloc(sizeof(*res), GFP_KERNEL);
   block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -101,7 +101,49 @@ static void physicalmemory_free_block(struct block* p)
 
 int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
 {
-  return -EINVAL;
+  unsigned long size = 0;
+  unsigned long physical_address = 0;
+  int result = -EINVAL;
+  struct file_data* fileData = f->private_data;
+  struct block* pos = NULL;
+  struct block* temp = NULL;
+
+  BUG_ON(!fileData);
+  if(!region)
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: No memory to free to\n");
+    return -EINVAL;
+  }
+  if(copy_from_user(&size, &arg->size, sizeof(unsigned long)))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read size\n");
+    return -EPERM;
+  }
+  if(copy_from_user(&physical_address, &arg->physicalAddress, sizeof(unsigned long)))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read physicalAddress\n");
+    return -EPERM;
+  }
+    
+  printk(KERN_NOTICE PRINTK_PREFIX "Request free of buffer of size 0x%lX at 0x%010lX\n",
+         size, physical_address);
+
+  write_lock(&data_lock);
+  list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
+  {
+    BUG_ON(!pos->res);
+    
+    if(physical_address == pos->res->start &&
+       size == (pos->res->end - pos->res->start + 1))
+    {
+      physicalmemory_free_block(pos);
+      result = 0;
+      break;
+    }
+  }
+  write_unlock(&data_lock);
+
+  return result;
 }
 
 int physicalmemory_free_all(struct file* f)

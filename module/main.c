@@ -141,7 +141,7 @@ static void release_memory(void)
 static int physicalmemory_open (struct inode *inode, struct file *filp)
 {
   struct file_data* private = NULL;
-  printk(KERN_NOTICE PRINTK_PREFIX "Open\n");
+  // printk(KERN_NOTICE PRINTK_PREFIX "Open\n");
 
   private = kzalloc(sizeof(*private), GFP_KERNEL);
   if(!private)
@@ -158,7 +158,7 @@ static int physicalmemory_open (struct inode *inode, struct file *filp)
 static int physicalmemory_release(struct inode *inode, struct file *filp)
 {
   int result = 0;
-  printk(KERN_NOTICE PRINTK_PREFIX "Release\n");
+  // printk(KERN_NOTICE PRINTK_PREFIX "Release\n");
   
   result = physicalmemory_free_all(filp);
   
@@ -174,7 +174,7 @@ static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg
   const unsigned int type = _IOC_TYPE(cmd);
   const unsigned int nr = _IOC_NR(cmd);
 
-  printk(KERN_NOTICE PRINTK_PREFIX "ioctl\n");
+  // printk(KERN_NOTICE PRINTK_PREFIX "ioctl\n");
 
   if(type != PHYSICALMEMORY_IOCTL_TYPE)
   {
