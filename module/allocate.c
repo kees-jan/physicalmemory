@@ -2,6 +2,7 @@
 
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/ioport.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
