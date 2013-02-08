@@ -13,6 +13,7 @@ ccflags-y += $(DEBFLAGS)
 ifneq ($(KERNELRELEASE),)
 # call from kernel build system
 
+physicalmemory-objs := allocate.o main.o
 obj-m	:= physicalmemory.o
 
 else

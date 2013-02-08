@@ -9,4 +9,4 @@ module/modules.order
 module/physicalmemory.ko
 module/physicalmemory.mod.c
 module/physicalmemory.mod.o
-module/physicalmemory.o
+module/*.o

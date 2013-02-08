@@ -14,15 +14,11 @@
 #include <linux/smp.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <linux/version.h>
-
-#if (LINUX_VERSION_CODE < 0x020630)
-#define OLD_LUNARIS_KERNEL
-#endif
-
 #include <linux/device.h>
 
+#include "common.h"
 #include "physicalmemory_ioctl.h"
+#include "allocate.h"
 
 // Metadata
 MODULE_AUTHOR("Kees-Jan Dijkzeul");
@@ -40,9 +36,11 @@ module_param(end, ulong, S_IRUGO);
 
 // Resources
 static int physicalmemory_major = 0;
-static struct resource* region = NULL;
+struct resource* region = NULL;
 static u64 mappedMemory = 0;
 
+// Plumbing
+DEFINE_RWLOCK(data_lock);
 
 #ifdef OLD_LUNARIS_KERNEL
 static void __wbinvd(void *dummy)
@@ -104,7 +102,7 @@ static int check_parameters(void)
   return 0;
 }
 
-static int obtain_memory(void)
+static int __init obtain_memory(void)
 {
   region = request_mem_region(start, size, DRIVER_NAME);
   if(!region)
@@ -121,7 +119,6 @@ static int obtain_memory(void)
   }
 
   printk(KERN_NOTICE PRINTK_PREFIX "Mapped physical memory to address 0x%010llX\n", mappedMemory);
-  // *((u64*)mappedMemory) = 0x0102030405060708;
 
   return 0;
 }
@@ -143,14 +140,33 @@ static void release_memory(void)
 
 static int physicalmemory_open (struct inode *inode, struct file *filp)
 {
+  struct file_data* private = NULL;
   printk(KERN_NOTICE PRINTK_PREFIX "Open\n");
+
+  private = kzalloc(sizeof(*private), GFP_KERNEL);
+  if(!private)
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Failed to allocate memory for bookkeeping\n");
+    return -ENOMEM;
+  }
+
+  INIT_LIST_HEAD(&private->allocated);
+  filp->private_data = private;
   return 0;
 }
 
 static int physicalmemory_release(struct inode *inode, struct file *filp)
 {
+  int result = 0;
   printk(KERN_NOTICE PRINTK_PREFIX "Release\n");
-  return 0;
+  
+  result = physicalmemory_free_all(filp);
+  
+  BUG_ON(!filp->private_data);
+  kfree(filp->private_data);
+  filp->private_data = NULL;
+
+  return result;
 }
 
 static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg)
@@ -178,6 +194,14 @@ static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg
     printk(KERN_NOTICE PRINTK_PREFIX "Flushing caches\n");
     wbinvd_on_all_cpus();
     mb();
+    break;
+  case PHYSICALMEMORY_IOCTL_ALLOCATE:
+    printk(KERN_NOTICE PRINTK_PREFIX "Allocate buffer\n");
+    return physicalmemory_allocate(f, (struct MemoryBlock*)arg);
+    break;
+  case PHYSICALMEMORY_IOCTL_FREE:
+    printk(KERN_NOTICE PRINTK_PREFIX "Free buffer\n");
+    return physicalmemory_free(f, (struct MemoryBlock*)arg);
     break;
   default:
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: ioctl %x not handled\n", cmd);
@@ -282,9 +306,6 @@ static void physicalmemory_cleanup(void)
   release_memory();
 }
 
-/*
- * Module housekeeping.
- */
 static int __init physicalmemory_init(void)
 {
   int result;
