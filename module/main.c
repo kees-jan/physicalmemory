@@ -40,7 +40,11 @@ struct resource* region = NULL;
 static u64 mappedMemory = 0;
 
 // Plumbing
-DEFINE_RWLOCK(data_lock);
+#ifdef OLD_LUNARIS_KERNEL
+DECLARE_MUTEX(data_lock);
+#else
+DEFINE_SEMAPHORE(data_lock);
+#endif
 
 #ifdef OLD_LUNARIS_KERNEL
 static void __wbinvd(void *dummy)

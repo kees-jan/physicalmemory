@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <linux/version.h>
+#include <linux/semaphore.h>
 
 #if (LINUX_VERSION_CODE < 0x020630)
 #define OLD_LUNARIS_KERNEL
@@ -14,7 +15,7 @@
 extern struct resource* region;
 
 // Plumbing
-extern rwlock_t data_lock;
+extern struct semaphore data_lock;
 
 struct file_data
 {

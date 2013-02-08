@@ -53,6 +53,8 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
     result = -ENOMEM;
     goto fail;
   }
+  res->start = 0;
+  res->end = 0;
   res->name = CACHED;
 
   result = allocate_resource(region, res, size, 0, -1, 1, NULL, NULL);
@@ -69,14 +71,25 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   INIT_LIST_HEAD(&block->list);
   block->res = res;
 
-  write_lock(&data_lock);
+  if(down_interruptible(&data_lock))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Interrupted\n");
+    result = -EAGAIN;
+    goto fail;
+  }
+
   list_add(&block->list, &fileData->allocated);
-  write_unlock(&data_lock);
+  up(&data_lock);
   
   return 0;
 
  fail:
-  if(res) kfree(res);
+  if(res)
+  {
+    if(res->start)
+      release_resource(res);
+    kfree(res);
+  }
   if(block) kfree(block);
   return result;
 }
@@ -120,21 +133,28 @@ int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
   printk(KERN_NOTICE PRINTK_PREFIX "Request free of buffer of size 0x%lX at 0x%010lX\n",
          size, physical_address);
 
-  write_lock(&data_lock);
-  list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
+  if(!down_interruptible(&data_lock))
   {
-    BUG_ON(!pos->res);
-    
-    if(physical_address == pos->res->start &&
-       size == (pos->res->end - pos->res->start + 1))
+    list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
     {
-      physicalmemory_free_block(pos);
-      result = 0;
-      break;
+      BUG_ON(!pos->res);
+    
+      if(physical_address == pos->res->start &&
+         size == (pos->res->end - pos->res->start + 1))
+      {
+        physicalmemory_free_block(pos);
+        result = 0;
+        break;
+      }
     }
+    up(&data_lock);
   }
-  write_unlock(&data_lock);
-
+  else
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Interrupted\n");
+    result = -EAGAIN;
+  }
+  
   return result;
 }
 
@@ -145,7 +165,7 @@ int physicalmemory_free_all(struct file* f)
   struct file_data* fileData = f->private_data;
   BUG_ON(!fileData);
   
-  write_lock(&data_lock);
+  down(&data_lock);
   printk(KERN_NOTICE PRINTK_PREFIX "Deallocate all %d buffers for process\n", list_count(&fileData->allocated));
   
   list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
@@ -153,7 +173,7 @@ int physicalmemory_free_all(struct file* f)
     physicalmemory_free_block(pos);
   }
   BUG_ON(!list_empty(&fileData->allocated));
-  write_unlock(&data_lock);
+  up(&data_lock);
   
   return 0;
 }
