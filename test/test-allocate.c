@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     int result = ioctl(fd, PHYSICALMEMORY_IOCTL_ALLOCATE, &block);
     if(result<0)
     {
-      perror("ioctl failed");
+      perror("allocate failed");
       return -1;
     }
     printf("Got memory at physical address 0x%010lX\n", block.physicalAddress);

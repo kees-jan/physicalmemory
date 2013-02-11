@@ -23,6 +23,7 @@ try_load_module()
 
 cleanup()
 {
+    wait
     ( cd ../module && ./physicalmemory_unload )
 }
 
@@ -61,6 +62,11 @@ LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free $SHOULD_FIT
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map $SHOULD_FIT
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map-incorrectly $SHOULD_FIT_GENEROUSLY
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free-mapped-region $SHOULD_FIT
-LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-fork $SHOULD_FIT
+
+echo Concurrency tests
+sleep 2 &
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-fork $SHOULD_FIT_GENEROUSLY   # This one doesn't wait for its child
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-fork2 $SHOULD_FIT_GENEROUSLY
+wait
 
 echo Succes!

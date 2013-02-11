@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     int result = ioctl(fd, PHYSICALMEMORY_IOCTL_ALLOCATE, &block);
     if(result<0)
     {
-      perror("ioctl failed");
+      perror("allocate failed");
       return -1;
     }
     printf("Got memory at physical address 0x%010lX\n", block.physicalAddress);
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     result = ioctl(fd, PHYSICALMEMORY_IOCTL_FREE, &block);
     if(result<0)
     {
-      perror("ioctl failed");
+      perror("free failed");
       return -1;
     }
     printf("Freed memory at physical address 0x%010lX\n", block.physicalAddress); 
