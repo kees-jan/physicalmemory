@@ -14,8 +14,16 @@ struct block
 {
   struct list_head list;
   struct resource* res;
+  int refcount;
 };
 
+static inline void init_block(struct block* b)
+{
+  INIT_LIST_HEAD(&b->list);
+  b->res = NULL;
+  b->refcount = 0;
+}
+  
 static int list_count(struct list_head* list)
 {
   int count = 0;
@@ -86,7 +94,7 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   physical_address = res->start;
   copy_to_user(&arg->physicalAddress, &physical_address, sizeof(unsigned long));
 
-  INIT_LIST_HEAD(&block->list);
+  init_block(block);
   block->res = res;
 
   if(down_interruptible(&data_lock))
@@ -116,6 +124,7 @@ static void physicalmemory_free_block(struct block* p)
 {
   BUG_ON(!p);
   BUG_ON(!p->res);
+  
   printk(KERN_NOTICE PRINTK_PREFIX "Freeing buffer of size 0x%lX at 0x%010lX\n",
          (unsigned long)(p->res->end - p->res->start + 1), (unsigned long)(p->res->start));
 
@@ -152,12 +161,19 @@ int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
   if(!down_interruptible(&data_lock))
   {
     struct block* pos = find(&fileData->allocated, physical_address, size);
-    if(pos)
+    if(pos && !pos->refcount)
     {
       physicalmemory_free_block(pos);
+      pos = NULL;
       result = 0;
     }
     up(&data_lock);
+
+    if(pos)
+    {
+      printk(KERN_WARNING PRINTK_PREFIX "ERROR: Attempt to free memory that is still in use\n");
+      result = -EINVAL;
+    }
   }
   else
   {
@@ -173,6 +189,8 @@ int physicalmemory_free_all(struct file* f)
   struct block* pos = NULL;
   struct block* temp = NULL;
   struct file_data* fileData = f->private_data;
+  bool listIsEmtpy = true;
+  
   BUG_ON(!fileData);
   
   down(&data_lock);
@@ -180,10 +198,13 @@ int physicalmemory_free_all(struct file* f)
   
   list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
   {
-    physicalmemory_free_block(pos);
+    if(!pos->refcount)
+      physicalmemory_free_block(pos);
   }
-  BUG_ON(!list_empty(&fileData->allocated));
+  listIsEmtpy = list_empty(&fileData->allocated);
   up(&data_lock);
+
+  BUG_ON(!listIsEmtpy);
   
   return 0;
 }
@@ -228,7 +249,8 @@ int physicalmemory_remap_mmap(struct file *f, struct vm_area_struct *vma)
   }
 
   vma->vm_ops = &physicalmemory_remap_vm_ops;
-  physicalmemory_vma_open(vma);
+  mem->refcount++;
+  vma->vm_private_data = mem;
 
  out:
   up(&data_lock);
@@ -237,14 +259,31 @@ int physicalmemory_remap_mmap(struct file *f, struct vm_area_struct *vma)
 
 void physicalmemory_vma_open(struct vm_area_struct *vma)
 {
+  struct block* mem = NULL;
+  
   printk(KERN_NOTICE PRINTK_PREFIX "VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
          vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
          vma->vm_end - vma->vm_start);
+
+  BUG_ON(!vma->vm_private_data);
+  
+  down(&data_lock);
+  mem = (struct block*)vma->vm_private_data;
+  mem->refcount++;
+  up(&data_lock);
 }
 
 void physicalmemory_vma_close(struct vm_area_struct *vma)
 {
+  struct block* mem = NULL;
+
   printk(KERN_NOTICE PRINTK_PREFIX "VMA close.\n");
+  BUG_ON(!vma->vm_private_data);
+  
+  down(&data_lock);
+  mem = (struct block*)vma->vm_private_data;
+  mem->refcount--;
+  up(&data_lock);
 }
 
 

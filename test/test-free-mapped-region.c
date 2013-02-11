@@ -37,14 +37,35 @@ int main(int argc, char **argv)
     }
     printf("Got memory at physical address 0x%010lX\n", block.physicalAddress);
 
+    void* address=mmap(0, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, block.physicalAddress);
+    if(address==MAP_FAILED || address==NULL)
+    {
+      perror("mmap failed");
+      return -1;
+    }
+
+    result = ioctl(fd, PHYSICALMEMORY_IOCTL_FREE, &block);
+    if(result>=0)
+    {
+      printf("ERROR: Free of mapped region succeeded\n");
+      return -1;
+    }
+
+    result = munmap(address, len);
+    if(result<0)
+    {
+      perror("munmap failed");
+      return 1;
+    }
+
     result = ioctl(fd, PHYSICALMEMORY_IOCTL_FREE, &block);
     if(result<0)
     {
       perror("ioctl failed");
       return -1;
     }
-    printf("Freed memory at physical address 0x%010lX\n", block.physicalAddress); 
-   
+    printf("Freed memory at physical address 0x%010lX\n", block.physicalAddress);
+    
     return 0;
 }
         

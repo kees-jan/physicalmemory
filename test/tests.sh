@@ -60,5 +60,7 @@ LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free $SHOULD_FIT
 ! LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free $SHOULD_NOT_FIT
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map $SHOULD_FIT
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map-incorrectly $SHOULD_FIT_GENEROUSLY
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free-mapped-region $SHOULD_FIT
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-fork $SHOULD_FIT
 
 echo Succes!
