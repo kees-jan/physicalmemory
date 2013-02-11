@@ -93,6 +93,8 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   if(result < 0 )
   {
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: Failed to allocate memory\n");
+    res->start = 0;
+    res->end = 0;
     result = -ENOMEM;
     goto fail;
   }
