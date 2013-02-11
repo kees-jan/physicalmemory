@@ -36,6 +36,14 @@ int main(int argc, char **argv)
       return -1;
     }
     printf("Got memory at physical address 0x%010lX\n", block.physicalAddress);
+
+    void* address=mmap(0, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, block.physicalAddress);
+    if(address==MAP_FAILED || address==NULL)
+    {
+      perror("mmap failed");
+      return 1;
+    }
+    
     return 0;
 }
         

@@ -7,6 +7,8 @@
 
 #include <physicalmemory_ioctl.h>
 
+const int PAGESIZE=4096;
+
 int main(int argc, char **argv)
 {
     int fd=-1;
@@ -36,6 +38,28 @@ int main(int argc, char **argv)
       return -1;
     }
     printf("Got memory at physical address 0x%010lX\n", block.physicalAddress);
+
+    void* address=mmap(0, len+PAGESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, block.physicalAddress);
+    if(address!=MAP_FAILED && address!=NULL)
+    {
+      printf("ERROR: Map of one excess byte succeeded\n");
+      return 1;
+    }
+    
+    address=mmap(0, len/2, PROT_READ | PROT_WRITE, MAP_SHARED, fd, block.physicalAddress);
+    if(address!=MAP_FAILED && address!=NULL)
+    {
+      printf("ERROR: Map of too few bytes succeeded\n");
+      return 1;
+    }
+    
+    address=mmap(0, len-PAGESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, block.physicalAddress + PAGESIZE);
+    if(address!=MAP_FAILED && address!=NULL)
+    {
+      printf("ERROR: Map at wrong physical address succeeded\n");
+      return 1;
+    }
+    
     return 0;
 }
         

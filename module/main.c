@@ -217,49 +217,6 @@ static long physicalmemory_ioctl(struct file *f, unsigned cmd, unsigned long arg
 
 
 /*
- * Common VMA ops.
- */
-
-void physicalmemory_vma_open(struct vm_area_struct *vma)
-{
-  printk(KERN_NOTICE PRINTK_PREFIX "VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
-         vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
-         vma->vm_end - vma->vm_start);
-  printk(KERN_NOTICE PRINTK_PREFIX "VMA open, flags 0x%010lX, prot 0x%010lX\n",
-         vma->vm_flags, vma->vm_page_prot.pgprot);
-}
-
-void physicalmemory_vma_close(struct vm_area_struct *vma)
-{
-  printk(KERN_NOTICE PRINTK_PREFIX "VMA close.\n");
-}
-
-
-/*
- * The remap_pfn_range version of mmap.  This one is heavily borrowed
- * from drivers/char/mem.c.
- */
-
-static struct vm_operations_struct physicalmemory_remap_vm_ops = {
-  .open =  physicalmemory_vma_open,
-  .close = physicalmemory_vma_close,
-};
-
-static int physicalmemory_remap_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-  if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-                      vma->vm_end - vma->vm_start,
-                      vma->vm_page_prot))
-    return -EAGAIN;
-
-  vma->vm_ops = &physicalmemory_remap_vm_ops;
-  physicalmemory_vma_open(vma);
-  return 0;
-}
-
-
-
-/*
  * Set up the cdev structure for a device.
  */
 static void physicalmemory_setup_cdev(struct cdev *dev, int minor,

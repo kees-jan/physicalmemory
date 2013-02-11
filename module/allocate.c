@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
@@ -24,6 +25,23 @@ static int list_count(struct list_head* list)
     count++;
 
   return count;
+}
+
+static struct block* find(struct list_head* list, unsigned long physical_address, unsigned long size)
+{
+  struct block* pos;
+
+  list_for_each_entry(pos, list, list)
+  {
+    BUG_ON(!pos->res);
+    if(pos->res->start == physical_address &&
+       (pos->res->end - pos->res->start + 1) == size)
+    {
+      return pos;
+    }
+  }
+
+  return NULL;
 }
 
 int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
@@ -114,8 +132,6 @@ int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
   unsigned long physical_address = 0;
   int result = -EINVAL;
   struct file_data* fileData = f->private_data;
-  struct block* pos = NULL;
-  struct block* temp = NULL;
 
   BUG_ON(!fileData);
   BUG_ON(!region);
@@ -135,17 +151,11 @@ int physicalmemory_free(struct file* f, struct MemoryBlock* arg)
 
   if(!down_interruptible(&data_lock))
   {
-    list_for_each_entry_safe(pos, temp, &fileData->allocated, list)
+    struct block* pos = find(&fileData->allocated, physical_address, size);
+    if(pos)
     {
-      BUG_ON(!pos->res);
-    
-      if(physical_address == pos->res->start &&
-         size == (pos->res->end - pos->res->start + 1))
-      {
-        physicalmemory_free_block(pos);
-        result = 0;
-        break;
-      }
+      physicalmemory_free_block(pos);
+      result = 0;
     }
     up(&data_lock);
   }
@@ -177,3 +187,64 @@ int physicalmemory_free_all(struct file* f)
   
   return 0;
 }
+
+static struct vm_operations_struct physicalmemory_remap_vm_ops = {
+  .open =  physicalmemory_vma_open,
+  .close = physicalmemory_vma_close,
+};
+
+int physicalmemory_remap_mmap(struct file *f, struct vm_area_struct *vma)
+{
+  int result = 0;
+  struct block* mem = NULL;
+  struct file_data* fileData = f->private_data;
+  BUG_ON(!fileData);
+
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA map, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
+         vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
+         vma->vm_end - vma->vm_start);
+  
+  if(down_interruptible(&data_lock))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Interrupted\n");
+    return -EAGAIN;
+  }
+
+  mem = find(&fileData->allocated, vma->vm_pgoff << PAGE_SHIFT, vma->vm_end - vma->vm_start);
+  if(!mem)
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Region not allocated\n");
+    result = -EINVAL;
+    goto out;
+  }
+  
+  if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+                      vma->vm_end - vma->vm_start,
+                      vma->vm_page_prot))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: remap_pfn_range failed\n");
+    result = -EAGAIN;
+    goto out;
+  }
+
+  vma->vm_ops = &physicalmemory_remap_vm_ops;
+  physicalmemory_vma_open(vma);
+
+ out:
+  up(&data_lock);
+  return result;
+}
+
+void physicalmemory_vma_open(struct vm_area_struct *vma)
+{
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA open, virt 0x%010lX, phys 0x%010lX, size 0x%010lX\n",
+         vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
+         vma->vm_end - vma->vm_start);
+}
+
+void physicalmemory_vma_close(struct vm_area_struct *vma)
+{
+  printk(KERN_NOTICE PRINTK_PREFIX "VMA close.\n");
+}
+
+

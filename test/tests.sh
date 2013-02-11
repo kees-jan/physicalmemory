@@ -4,6 +4,11 @@
 START=0xC0000000
 SIZE=0x10000000
 
+#Derived
+SHOULD_FIT=$SIZE
+SHOULD_FIT_GENEROUSLY=$(($SIZE/2))
+SHOULD_NOT_FIT=$(($SIZE + 1))
+
 # Constants
 PAGESIZE=4096
 
@@ -49,5 +54,11 @@ echo Underspecified
 echo Runtime tests
 (cd ../module && ./physicalmemory_load start=$START size=$SIZE)
 LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-flush
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-allocate $SHOULD_FIT
+! LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-allocate $SHOULD_NOT_FIT
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free $SHOULD_FIT
+! LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-free $SHOULD_NOT_FIT
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map $SHOULD_FIT
+LD_LIBRARY_PATH=../lib/_lib/:  ../test/_bin/test-map-incorrectly $SHOULD_FIT_GENEROUSLY
 
 echo Succes!
