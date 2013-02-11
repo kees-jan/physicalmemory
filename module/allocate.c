@@ -55,6 +55,7 @@ static struct block* find(struct list_head* list, unsigned long physical_address
 int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
 {
   unsigned long size = 0;
+  unsigned long align = PAGE_SIZE;
   struct resource *res = NULL;
   struct block *block = NULL;
   unsigned long physical_address = 0;
@@ -68,8 +69,13 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read size\n");
     return -EPERM;
   }
+  if(copy_from_user(&align, &arg->alignment, sizeof(unsigned long)))
+  {
+    printk(KERN_WARNING PRINTK_PREFIX "ERROR: Can't read alignment\n");
+    return -EPERM;
+  }
      
-  printk(KERN_NOTICE PRINTK_PREFIX "Allocating buffer of size 0x%lX\n", size);
+  printk(KERN_NOTICE PRINTK_PREFIX "Allocating buffer of size 0x%lX, aligned at 0x%lX\n", size, align);
 
   res = kzalloc(sizeof(*res), GFP_KERNEL);
   block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -83,7 +89,7 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   res->end = 0;
   res->name = CACHED;
 
-  result = allocate_resource(region, res, size, 0, -1, 1, NULL, NULL);
+  result = allocate_resource(region, res, size, 0, -1, align, NULL, NULL);
   if(result < 0 )
   {
     printk(KERN_WARNING PRINTK_PREFIX "ERROR: Failed to allocate memory\n");
