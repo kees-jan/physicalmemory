@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#define CACHED "cached"
+#define BUFFER "buffer"
 
 struct block
 {
@@ -87,7 +87,7 @@ int physicalmemory_allocate(struct file* f, struct MemoryBlock* arg)
   }
   res->start = 0;
   res->end = 0;
-  res->name = CACHED;
+  res->name = BUFFER;
 
   result = allocate_resource(region, res, size, 0, -1, align, NULL, NULL);
   if(result < 0 )
