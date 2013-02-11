@@ -13,6 +13,14 @@ struct MemoryBlock
 {
   unsigned long size;
   unsigned long physicalAddress;
+  unsigned long alignment;
 };
+
+#define MEMORYBLOCK_INITIALIZER \
+  {                             \
+  .size = 0,                    \
+  .physicalAddress = 0,         \
+  .alignment = 4096,            \
+  }
 
 #endif

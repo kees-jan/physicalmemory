@@ -27,7 +27,7 @@ int main(int argc, char **argv)
       perror("Open device failed");
     }
 
-    struct MemoryBlock block;
+    struct MemoryBlock block = MEMORYBLOCK_INITIALIZER;
     block.size = len;
     block.physicalAddress = 0;
 
